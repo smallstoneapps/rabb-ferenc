@@ -7,14 +7,21 @@
  * GitHub Repository: https://github.com/smallstoneapps/rabb-ferenc/
 */
 
+#include <math.h>
 #include "pebble_os.h"
 #include "pebble_app.h"
 #include "pebble_fonts.h"
-#include <math.h>
+
+#include "config.h"
+
+#if ROCKSHOT
+#include "http.h"
+#include "httpcapture.h"
+#endif
 
 #define MY_UUID { 0x75, 0x07, 0x9D, 0x5F, 0x24, 0x8C, 0x43, 0x60, 0x9D, 0x6F, 0x82, 0xCC, 0x04, 0x1A, 0xB7, 0x31 }
 
-PBL_APP_INFO(MY_UUID, "Rabb Ferenc", "Small Stone Apps", 1, 0,  DEFAULT_MENU_ICON, APP_INFO_WATCH_FACE);
+PBL_APP_INFO(MY_UUID, "Rabb Ferenc", "Matthew Tole", 1, 0,  DEFAULT_MENU_ICON, APP_INFO_WATCH_FACE);
 
 #define PI 3.14159
 
@@ -43,7 +50,7 @@ PBL_APP_INFO(MY_UUID, "Rabb Ferenc", "Small Stone Apps", 1, 0,  DEFAULT_MENU_ICO
 
 #define COUNTDOWN_MINUTE 50
 
-const char *date_days[] = { "Vasárnap", "Hétfő", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat"  };
+const char *date_days[] = { "Vasárnap", "Hétfo", "Kedd", "Szerda", "Csütörtök", "Péntek", "Szombat"  };
 const char *date_months[] = { "Jan", "Febr", "Márc", "Ápr", "Máj", "Jún", "Júl", "Aug", "Szept", "Okt", "Nov", "Dec" };
 
 void handle_init(AppContextRef ctx);
@@ -76,6 +83,10 @@ void countdown_update(Layer* me, GContext* ctx);
 double degtorad(double deg);
 double angle_from_minute(int min);
 
+#if ROCKSHOT
+void http_success(int32_t cookie, int http_status, DictionaryIterator *dict, void *ctx);
+#endif
+
 Window window;
 TextLayer layer_clock_digital;
 TextLayer layer_date;
@@ -98,11 +109,30 @@ void pbl_main(void *params) {
       .tick_units = SECOND_UNIT
     }
   };
+
+  #if ROCKSHOT
+  handlers.messaging_info = (PebbleAppMessagingInfo) {
+    .buffer_sizes = {
+      .inbound = 124,
+      .outbound = 124,
+    },
+  };
+  http_capture_main(&handlers);
+  #endif
+
   app_event_loop(params, &handlers);
 }
 
 void handle_init(AppContextRef ctx) {
   resource_init_current_app(&APP_RESOURCES);
+
+  #if ROCKSHOT
+  http_set_app_id(15);
+  http_register_callbacks((HTTPCallbacks) {
+    .success = http_success
+  }, NULL);
+  http_capture_init(ctx);
+  #endif
 
   load_bitmaps();
   load_fonts();
@@ -424,3 +454,8 @@ double angle_from_minute(int min) {
 double degtorad(double deg) {
   return (PI * deg / 180.0);
 }
+
+#if ROCKSHOT
+void http_success(int32_t cookie, int http_status, DictionaryIterator *dict, void *ctx) {
+}
+#endif
